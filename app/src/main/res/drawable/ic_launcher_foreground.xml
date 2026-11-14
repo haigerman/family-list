@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Eine Liste mit drei Zeilen: jede gehört einem anderen Familienmitglied (Farbpunkt), die erste ist abgehakt -->
+    <!-- Blatt -->
+    <path android:strokeColor="#FF8CC7C4" android:strokeWidth="4.0" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M38,32 L70,32 Q74,32 74,36 L74,72 Q74,76 70,76 L38,76 Q34,76 34,72 L34,36 Q34,32 38,32 Z" />
+    <!-- Haken der ersten Zeile -->
+    <path android:strokeColor="#FFE8C77A" android:strokeWidth="3.6" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M40.5,43 L43.5,46 L48.5,40" />
+    <!-- Punkte der beiden anderen Zeilen -->
+    <path android:fillColor="#FFFF8A65" android:pathData="M44,54 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+    <path android:fillColor="#FF7FD1AE" android:pathData="M44,65 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+    <!-- Textzeilen -->
+    <path android:strokeColor="#FFEAF1F1" android:strokeWidth="3.4" android:strokeLineCap="round"
+        android:pathData="M54,43 L67,43 M53,54 L64,54 M53,65 L67,65" />
+</vector>
