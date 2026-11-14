@@ -82,11 +82,16 @@ object Reminders {
             .putLong("lastFired", System.currentTimeMillis()).putLong("lastDelay", delay.coerceAtLeast(0)).apply()
     }
 
-    /** Stellt einen Wecker auf die Minute genau; er löst auch aus, wenn das Handy schläft. */
+    /**
+     * Stellt einen Wecker über die Weckerfunktion des Geräts (wie eine Wecker-App). Nur sie löst
+     * garantiert zur Minute aus: Gewöhnliche Wecker hält Android zum Akkusparen um Minuten zurück,
+     * sobald das Handy ruht (gemessen: 18:05 kam um 18:09). Android zeigt dafür das Wecker-Symbol
+     * in der Statusleiste.
+     */
     private fun setAlarm(context: Context, at: Long, intent: PendingIntent) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         if (exactAllowed(context)) {
-            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
+            alarms.setAlarmClock(AlarmManager.AlarmClockInfo(at, openApp(context)), intent)
         } else {
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
         }
@@ -152,9 +157,13 @@ object Reminders {
 
     fun millis(task: Task): Long? = task.due?.atZone(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
 
-    /** Gleicht die gestellten Wecker mit den Tasks ab. Darf beliebig oft aufgerufen werden. */
+    /**
+     * Gleicht die gestellten Wecker mit den Tasks ab. Darf beliebig oft aufgerufen werden: ein
+     * Wecker, der schon richtig steht, wird nicht angefasst. [force] stellt alle neu – nötig nach
+     * Neustart, App-Update oder Zeitumstellung, wenn das Gerät die Wecker verworfen hat.
+     */
     @Synchronized
-    fun refresh(context: Context, data: FamilyData) {
+    fun refresh(context: Context, data: FamilyData, force: Boolean = false) {
         val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
         val alarms = context.getSystemService(AlarmManager::class.java)
         val notifications = context.getSystemService(NotificationManager::class.java)
@@ -175,10 +184,14 @@ object Reminders {
         val notified = HashSet(prefs.getStringSet("notified", emptySet()) ?: emptySet())
 
         // erledigt, gelöscht oder nicht mehr zugeordnet: Wecker und Benachrichtigung weg
-        for (id in scheduled.toList()) {
+        // (gemerkt wird je Wecker „Kennung|Zeit“)
+        for (entry in scheduled.toList()) {
+            val id = entry.substringBeforeLast('|')
             if (id !in wanted) {
                 alarms.cancel(alarmIntent(context, id))
-                scheduled -= id
+                scheduled -= entry
+            } else if (force || entry != "$id|${wanted[id]}") {
+                scheduled -= entry // steht nicht (mehr) richtig: unten neu stellen
             }
         }
         for (key in notified.toList()) {
@@ -196,12 +209,12 @@ object Reminders {
             if (key in notified) continue
             if (at <= now) {
                 notified += key
-                scheduled -= id
+                scheduled -= key
                 if (now - at < CATCH_UP_MS) data.tasks.firstOrNull { it.id == id }?.let { show(context, it) }
-            } else {
+            } else if (key !in scheduled) {
                 alarms.cancel(oldAlarmIntent(context, id))
                 setAlarm(context, at, alarmIntent(context, id))
-                scheduled += id
+                scheduled += key
             }
         }
         prefs.edit().putStringSet("scheduled", scheduled).putStringSet("notified", notified).apply()
@@ -288,7 +301,7 @@ class ReminderReceiver : BroadcastReceiver() {
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Store.init(context)
-        Reminders.refresh(context, Store.data.value)
+        Reminders.refresh(context, Store.data.value, force = true)
         SyncWorker.schedule(context)
     }
 }

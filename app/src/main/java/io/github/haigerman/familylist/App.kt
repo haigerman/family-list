@@ -9,7 +9,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Store.init(this)
-        Reminders.refresh(this, Store.data.value)
+        Reminders.refresh(this, Store.data.value, force = true)
         SyncWorker.schedule(this)
     }
 }
