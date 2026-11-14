@@ -86,7 +86,9 @@ Drei Dateien liegen auf der obersten Ebene des Space:
   dazwischen, wird neu gelesen und wiederholt – so überschreibt niemand die Einträge der anderen.
 - Die geöffnete App gleicht alle 20 Sekunden ab (oder Liste nach unten ziehen), im Hintergrund
   etwa alle 15 Minuten. Darüber kommen auch Tasks der anderen samt Erinnerung aufs Handy.
-- Erinnerungen stellt die App als Wecker im Gerät – es gibt keinen Push-Server. Eine Erinnerung,
+- Erinnerungen stellt die App über die Weckerfunktion des Geräts (wie eine Wecker-App) – es gibt
+  keinen Push-Server. Android zeigt deshalb das Wecker-Symbol in der Statusleiste, solange eine
+  Erinnerung ansteht. Eine Erinnerung,
   die ein anderer erst kurz vor ihrer Zeit anlegt, kann deshalb bis zum nächsten
   Hintergrund-Abgleich verspätet kommen. Verpasste Erinnerungen (Handy aus) werden bis zu
   24 Stunden nachgeholt.
@@ -94,8 +96,9 @@ Drei Dateien liegen auf der obersten Ebene des Space:
 Kommt eine Erinnerung nicht oder erst beim Öffnen der App an, bremst meist die Akku-Verwaltung
 des Handys. Unter **⚙ Einstellungen → Erinnerungen** zeigt die App, ob Benachrichtigungen und
 genaue Wecker erlaubt sind und ob sie vom Akkusparen ausgenommen ist – jeweils mit Knopf zum
-Beheben. **Test: Erinnerung in 1 Minute** stellt einen Probe-Wecker; die Test-Benachrichtigung
-sagt, ob sie pünktlich kam. Manche Hersteller brauchen zusätzlich eine eigene Einstellung
+Beheben. **Test: Erinnerung in 1 Minute** stellt zwei Probe-Wecker: „Test A“ über die Weckerfunktion
+(so stellt die App ihre Erinnerungen) und „Test B“ als gewöhnlichen Wecker zum Vergleich; jede
+Benachrichtigung sagt, ob sie pünktlich kam. Manche Hersteller brauchen zusätzlich eine eigene Einstellung
 (Details je Modell: https://dontkillmyapp.com).
 
 ## Aufbau
