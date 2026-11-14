@@ -1,7 +1,10 @@
 package io.github.haigerman.familylist.ui
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -90,9 +93,24 @@ fun SettingsScreen(onBack: () -> Unit) {
     var chooseSpace by remember { mutableStateOf(false) }
 
     var canNotify by remember { mutableStateOf(Reminders.hasPermission(context)) }
+    var exact by remember { mutableStateOf(Reminders.exactAllowed(context)) }
+    var unrestricted by remember { mutableStateOf(Reminders.batteryUnrestricted(context)) }
+    var lastFired by remember { mutableStateOf(Reminders.lastFired(context)) }
+    var testStarted by remember { mutableStateOf(false) }
     LifecycleResumeEffect(Unit) {
         canNotify = Reminders.hasPermission(context)
+        exact = Reminders.exactAllowed(context)
+        unrestricted = Reminders.batteryUnrestricted(context)
+        lastFired = Reminders.lastFired(context)
         onPauseOrDispose { }
+    }
+    fun open(action: String) {
+        try {
+            context.startActivity(Intent(action, Uri.parse("package:" + context.packageName)))
+        } catch (_: Exception) {
+            // manche Geräte kennen die Seite nicht: dann die App-Info zeigen
+            runCatching { context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))) }
+        }
     }
     val askNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         canNotify = it
@@ -279,15 +297,30 @@ fun SettingsScreen(onBack: () -> Unit) {
                 SectionLabel("Erinnerungen")
                 Surface(color = Card, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
-                        Text(
-                            if (canNotify) "✓  Benachrichtigungen sind erlaubt" else "Benachrichtigungen sind nicht erlaubt",
-                            fontSize = 15.sp, color = if (canNotify) Mist else Coral,
-                        )
-                        Hint("Du wirst an Tasks erinnert, die dir oder niemandem zugeordnet sind. Tasks der anderen holt die App etwa alle 15 Minuten im Hintergrund ab.")
+                        Check(canNotify, "Benachrichtigungen sind erlaubt", "Benachrichtigungen sind nicht erlaubt")
                         if (!canNotify && Build.VERSION.SDK_INT >= 33) {
-                            Spacer(Modifier.height(12.dp))
-                            OutlineButton("Benachrichtigungen erlauben", Modifier.fillMaxWidth()) { askNotify.launch(Manifest.permission.POST_NOTIFICATIONS) }
+                            OutlineButton("Benachrichtigungen erlauben", Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) { askNotify.launch(Manifest.permission.POST_NOTIFICATIONS) }
                         }
+                        Check(exact, "Wecker auf die Minute genau sind erlaubt", "Genaue Wecker sind nicht erlaubt – Erinnerungen kommen verspätet")
+                        if (!exact && Build.VERSION.SDK_INT >= 31) {
+                            OutlineButton("Genaue Wecker erlauben", Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) { open(AndroidSettings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM) }
+                        }
+                        Check(unrestricted, "Vom Akkusparen ausgenommen", "Das Handy darf die App zum Akkusparen bremsen – Erinnerungen können ausbleiben")
+                        if (!unrestricted) {
+                            OutlineButton("Vom Akkusparen ausnehmen", Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) { open(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) }
+                        }
+                        Hint("Du wirst an Tasks erinnert, die dir oder niemandem zugeordnet sind. Tasks der anderen holt die App etwa alle 15 Minuten im Hintergrund ab.")
+                        Spacer(Modifier.height(12.dp))
+                        OutlineButton(if (testStarted) "Test läuft – kommt in 1 Minute" else "Test: Erinnerung in 1 Minute", Modifier.fillMaxWidth(), enabled = canNotify && !testStarted) {
+                            Reminders.test(context)
+                            testStarted = true
+                        }
+                        Hint(
+                            "Zum Testen den Knopf antippen, die App schließen und das Handy sperren." +
+                                if (lastFired.first == 0L) " Bisher hat auf diesem Gerät noch keine Erinnerung ausgelöst."
+                                else " Zuletzt ausgelöst: ${java.text.SimpleDateFormat("d. MMM, HH:mm", java.util.Locale.GERMAN).format(java.util.Date(lastFired.first))}" +
+                                    (if (lastFired.second >= 60_000) " (${lastFired.second / 60_000} Min. zu spät)." else " (pünktlich).")
+                        )
                     }
                 }
 
@@ -363,6 +396,11 @@ private fun SpaceChooser(config: Config, onPick: (Space) -> Unit, onDismiss: () 
         confirmButton = {},
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen", color = MaterialTheme.colorScheme.onSurfaceVariant) } },
     )
+}
+
+@Composable
+private fun Check(ok: Boolean, good: String, bad: String) {
+    Text(if (ok) "✓  $good" else "✕  $bad", fontSize = 15.sp, color = if (ok) Mist else Coral, modifier = Modifier.padding(vertical = 3.dp))
 }
 
 @Composable

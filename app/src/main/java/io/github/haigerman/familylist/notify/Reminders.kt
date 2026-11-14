@@ -31,7 +31,10 @@ object Reminders {
     private const val CHANNEL = "reminders"
     private const val ACTION_REMIND = "io.github.haigerman.familylist.REMIND"
     const val ACTION_DONE = "io.github.haigerman.familylist.DONE"
+    const val ACTION_TEST = "io.github.haigerman.familylist.TEST"
     const val EXTRA_ID = "id"
+    const val EXTRA_AT = "at"
+    private const val TEST_ID = "test-reminder"
     const val EXTRA_OPEN_TASKS = "openTasks"
 
     /** Verpasste Erinnerungen (Handy war aus, Task kam zu spät an) werden so lange noch nachgeholt. */
@@ -40,6 +43,56 @@ object Reminders {
     fun hasPermission(context: Context): Boolean =
         Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    /** Darf die App Wecker auf die Minute genau stellen? Sonst verschiebt Android sie nach Belieben. */
+    fun exactAllowed(context: Context): Boolean =
+        Build.VERSION.SDK_INT < 31 || context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+
+    /** Ist die App vom Akkusparen ausgenommen? */
+    fun batteryUnrestricted(context: Context): Boolean =
+        context.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
+
+    /** Wann zuletzt ein Wecker dieser App ausgelöst hat (0: noch nie) und mit wie viel Verspätung. */
+    fun lastFired(context: Context): Pair<Long, Long> {
+        val prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
+        return prefs.getLong("lastFired", 0) to prefs.getLong("lastDelay", 0)
+    }
+
+    /** Stellt einen Probe-Wecker: in einer Minute kommt eine Test-Benachrichtigung. */
+    fun test(context: Context) {
+        val at = System.currentTimeMillis() + 60_000
+        val intent = PendingIntent.getBroadcast(
+            context, 0,
+            Intent(context, ReminderReceiver::class.java).setAction(ACTION_TEST).putExtra(EXTRA_AT, at),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        setAlarm(context, at, intent)
+    }
+
+    internal fun testFired(context: Context, at: Long) {
+        val now = System.currentTimeMillis()
+        noteFired(context, now - at)
+        val late = (now - at) / 1000
+        show(
+            context,
+            Task(TEST_ID, "Test-Erinnerung", note = if (late < 60) "Pünktlich angekommen – die Erinnerungen funktionieren." else "Angekommen, aber ${late / 60} Min. zu spät."),
+            withDone = false,
+        )
+    }
+
+    private fun noteFired(context: Context, delay: Long) {
+        context.getSharedPreferences("reminders", Context.MODE_PRIVATE).edit()
+            .putLong("lastFired", System.currentTimeMillis()).putLong("lastDelay", delay.coerceAtLeast(0)).apply()
+    }
+
+    private fun setAlarm(context: Context, at: Long, intent: PendingIntent) {
+        val alarms = context.getSystemService(AlarmManager::class.java)
+        if (exactAllowed(context)) {
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
+        } else {
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
+        }
+    }
 
     /** Betrifft die Erinnerung dieses Geräts den Task? Ja, wenn er einem selbst oder niemandem zugeordnet ist. */
     fun concerns(task: Task, myName: String): Boolean =
@@ -89,12 +142,7 @@ object Reminders {
                 scheduled -= id
                 if (now - at < CATCH_UP_MS) data.tasks.firstOrNull { it.id == id }?.let { show(context, it) }
             } else {
-                val intent = alarmIntent(context, id)
-                if (Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()) {
-                    alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
-                } else {
-                    alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
-                }
+                setAlarm(context, at, alarmIntent(context, id))
                 scheduled += id
             }
         }
@@ -107,7 +155,7 @@ object Reminders {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
-    private fun show(context: Context, task: Task) {
+    private fun show(context: Context, task: Task, withDone: Boolean = true) {
         if (!hasPermission(context)) return
         val manager = context.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
@@ -145,13 +193,14 @@ object Reminders {
             .setColor(0xFFE8C77A.toInt())
             .setAutoCancel(true)
             .setContentIntent(open)
-            .addAction(0, "Erledigt", done)
+            .apply { if (withDone) addAction(0, "Erledigt", done) }
             .build()
         manager.notify(task.id.hashCode(), notification)
     }
 
     /** Der Wecker eines Tasks hat ausgelöst. */
     internal fun fired(context: Context, id: String) {
+        Store.data.value.tasks.firstOrNull { it.id == id }?.let(::millis)?.let { noteFired(context, System.currentTimeMillis() - it) }
         // refresh zeigt fällige Erinnerungen und merkt sich, dass sie gezeigt wurden
         refresh(context, Store.data.value)
     }
@@ -160,6 +209,10 @@ object Reminders {
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Store.init(context)
+        if (intent.action == Reminders.ACTION_TEST) {
+            Reminders.testFired(context, intent.getLongExtra(Reminders.EXTRA_AT, System.currentTimeMillis()))
+            return
+        }
         val id = intent.getStringExtra(Reminders.EXTRA_ID) ?: return
         when (intent.action) {
             Reminders.ACTION_DONE -> {

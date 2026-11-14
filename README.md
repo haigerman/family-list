@@ -91,8 +91,12 @@ Drei Dateien liegen auf der obersten Ebene des Space:
   Hintergrund-Abgleich verspätet kommen. Verpasste Erinnerungen (Handy aus) werden bis zu
   24 Stunden nachgeholt.
 
-Manche Hersteller beenden Apps im Hintergrund aggressiv; dann für Family List die
-Akku-Optimierung ausschalten (Details je Modell: https://dontkillmyapp.com).
+Kommt eine Erinnerung nicht oder erst beim Öffnen der App an, bremst meist die Akku-Verwaltung
+des Handys. Unter **⚙ Einstellungen → Erinnerungen** zeigt die App, ob Benachrichtigungen und
+genaue Wecker erlaubt sind und ob sie vom Akkusparen ausgenommen ist – jeweils mit Knopf zum
+Beheben. **Test: Erinnerung in 1 Minute** stellt einen Probe-Wecker; die Test-Benachrichtigung
+sagt, ob sie pünktlich kam. Manche Hersteller brauchen zusätzlich eine eigene Einstellung
+(Details je Modell: https://dontkillmyapp.com).
 
 ## Aufbau
 
