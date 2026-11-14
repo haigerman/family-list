@@ -87,14 +87,12 @@ Drei Dateien liegen auf der obersten Ebene des Space:
   darauf an („Milch abhaken“, „Eier ergänzen“) und speichert mit ETag-Prüfung. Kommt jemand
   dazwischen, wird neu gelesen und wiederholt – so überschreibt niemand die Einträge der anderen.
 - Die geöffnete App gleicht alle 20 Sekunden ab (oder Liste nach unten ziehen), im Hintergrund
-  etwa alle 15 Minuten. Darüber kommen auch Tasks der anderen samt Erinnerung aufs Handy.
-- Erinnerungen stellt die App über die Weckerfunktion des Geräts (wie eine Wecker-App) – es gibt
-  keinen Push-Server. Nur so kommen sie auf die Minute: Gewöhnliche Wecker hält Android zum
-  Akkusparen um Minuten zurück. Android zeigt deshalb das Wecker-Symbol in der Statusleiste,
-  solange eine Erinnerung ansteht. Eine Erinnerung,
-  die ein anderer erst kurz vor ihrer Zeit anlegt, kann deshalb bis zum nächsten
-  Hintergrund-Abgleich verspätet kommen. Verpasste Erinnerungen (Handy aus) werden bis zu
-  24 Stunden nachgeholt.
+  etwa alle 5 Minuten (ruht das Handy, streckt Android die Abstände). Darüber kommen auch Tasks der anderen samt Erinnerung aufs Handy.
+- Erinnerungen stellt die App als Wecker im Gerät – es gibt keinen Push-Server. Ruht das Handy,
+  kann Android sie zum Akkusparen ein paar Minuten zurückhalten.
+- Eine Erinnerung für **andere** muss mindestens 10 Minuten in der Zukunft liegen – so lange kann
+  es dauern, bis der Task auf ihrem Handy ankommt. Für sich selbst gilt das nicht.
+- Verpasste Erinnerungen (Handy aus, Task kam zu spät an) werden bis zu 24 Stunden nachgeholt.
 
 Kommt eine Erinnerung nicht oder erst beim Öffnen der App an, bremst meist die Akku-Verwaltung
 des Handys. Unter **⚙ Einstellungen → Erinnerungen** zeigt die App, ob Benachrichtigungen und

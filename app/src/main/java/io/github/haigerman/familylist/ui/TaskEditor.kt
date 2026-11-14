@@ -56,6 +56,9 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/** Vorlauf, den eine Erinnerung für andere mindestens braucht. */
+private const val MIN_LEAD_MINUTES = 10L
+
 /** Legt einen Task an ([task] ist null) oder ändert ihn. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +72,13 @@ fun TaskEditor(task: Task?, data: FamilyData, myName: String, onDismiss: () -> U
 
     // zur Wahl stehen alle aus der Familienliste, man selbst und wer schon zugeordnet ist
     val names = (data.members.map { it.name } + listOfNotNull(myName.takeIf { it.isNotBlank() }) + assignees).distinctBy { it.lowercase() }
+
+    // Die Handys der anderen holen neue Tasks nur alle paar Minuten ab. Eine Erinnerung für andere
+    // braucht deshalb Vorlauf, sonst ist ihre Zeit vorbei, bevor sie dort ankommt.
+    val forOthers = assignees.any { !it.equals(myName, ignoreCase = true) }
+    val changed = due != task?.due || assignees != (task?.assignees ?: emptyList<String>())
+    val tooSoon = forOthers && changed && task?.done != true &&
+        due?.isBefore(LocalDateTime.now().plusMinutes(MIN_LEAD_MINUTES)) == true
 
     fun save() {
         val result = Task(
@@ -142,7 +152,13 @@ fun TaskEditor(task: Task?, data: FamilyData, myName: String, onDismiss: () -> U
                         Spacer(Modifier.weight(1f))
                         SymbolButton("✕", "Erinnerung entfernen") { due = null }
                     }
-                    if (current.isBefore(LocalDateTime.now()) && task?.done != true) {
+                    if (tooSoon) {
+                        Text(
+                            "Erinnerungen für andere müssen mindestens $MIN_LEAD_MINUTES Minuten in der Zukunft liegen – " +
+                                "so lange kann es dauern, bis der Task auf ihrem Handy ankommt.",
+                            fontSize = 12.sp, color = Coral, modifier = Modifier.padding(top = 6.dp),
+                        )
+                    } else if (current.isBefore(LocalDateTime.now()) && task?.done != true) {
                         Text("Diese Zeit ist schon vorbei.", fontSize = 12.sp, color = Coral, modifier = Modifier.padding(top = 6.dp))
                     }
                 }
@@ -155,7 +171,7 @@ fun TaskEditor(task: Task?, data: FamilyData, myName: String, onDismiss: () -> U
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text("Abbrechen", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     Spacer(Modifier.width(4.dp))
-                    PrimaryButton("Speichern", enabled = title.isNotBlank()) { save() }
+                    PrimaryButton("Speichern", enabled = title.isNotBlank() && !tooSoon) { save() }
                 }
             }
         }

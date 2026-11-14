@@ -309,7 +309,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                         if (!unrestricted) {
                             OutlineButton("Vom Akkusparen ausnehmen", Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) { open(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) }
                         }
-                        Hint("Du wirst an Tasks erinnert, die dir oder niemandem zugeordnet sind. Tasks der anderen holt die App etwa alle 15 Minuten im Hintergrund ab.")
+                        Hint("Du wirst an Tasks erinnert, die dir oder niemandem zugeordnet sind. Tasks der anderen holt die App etwa alle 5 Minuten im Hintergrund ab; ruht das Handy, kann es länger dauern.")
                         Spacer(Modifier.height(12.dp))
                         OutlineButton(if (testStarted) "Test läuft – kommt in 1 Minute" else "Test: Erinnerung in 1 Minute", Modifier.fillMaxWidth(), enabled = canNotify && !testStarted) {
                             Reminders.test(context)

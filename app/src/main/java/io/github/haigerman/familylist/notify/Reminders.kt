@@ -83,15 +83,14 @@ object Reminders {
     }
 
     /**
-     * Stellt einen Wecker über die Weckerfunktion des Geräts (wie eine Wecker-App). Nur sie löst
-     * garantiert zur Minute aus: Gewöhnliche Wecker hält Android zum Akkusparen um Minuten zurück,
-     * sobald das Handy ruht (gemessen: 18:05 kam um 18:09). Android zeigt dafür das Wecker-Symbol
-     * in der Statusleiste.
+     * Stellt einen Wecker auf die Minute; er löst auch aus, wenn das Handy schläft. Android kann
+     * ihn dann zum Akkusparen um einige Minuten zurückhalten – das ist in Kauf genommen: Die
+     * Weckerfunktion (setAlarmClock) wäre pünktlich, zeigt aber das Wecker-Symbol in der Statusleiste.
      */
     private fun setAlarm(context: Context, at: Long, intent: PendingIntent) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         if (exactAllowed(context)) {
-            alarms.setAlarmClock(AlarmManager.AlarmClockInfo(at, openApp(context)), intent)
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
         } else {
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
         }
