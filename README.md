@@ -18,7 +18,9 @@ ist nicht nötig.
 - **Für wen?** – ein Task kann einem oder mehreren Familienmitgliedern zugeordnet werden
   (Tags antippen). Ohne Zuordnung geht er alle an.
 - **Erinnerung** – „Heute 18:00“, „Morgen 09:00“ oder Datum und Uhrzeit frei wählen. Zur Zeit
-  kommt eine Benachrichtigung, direkt mit dem Knopf **Erledigt**.
+  kommt eine Benachrichtigung mit drei Knöpfen: **Erledigt**, **In 1 Std.** (in einer Stunde
+  noch einmal erinnern) und **Morgen** (morgen zur selben Uhrzeit). Das Aufschieben gilt nur auf
+  dem eigenen Handy – die Zeit am Task und die Erinnerungen der anderen bleiben unverändert.
 - Erinnert wird, wem der Task zugeordnet ist; Tasks ohne Zuordnung erinnern alle.
 - **Alle / Meine** filtert die Liste; Tasks mit Zeit stehen oben, Überfälliges ist rot.
 
