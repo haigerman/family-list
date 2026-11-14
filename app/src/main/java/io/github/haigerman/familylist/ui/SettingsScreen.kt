@@ -316,8 +316,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             testStarted = true
                         }
                         Hint(
-                            "Antippen, die App schließen und das Handy sperren. Nach einer Minute sollten zwei Benachrichtigungen kommen: " +
-                                "„Test A“ (so stellt die App ihre Erinnerungen) und „Test B“ (zum Vergleich)." +
+                            "Antippen, die App schließen und das Handy sperren. Der Test nimmt genau den Weg der echten Erinnerungen." +
                                 if (lastFired.first == 0L) " Bisher hat auf diesem Gerät noch kein Wecker der App ausgelöst."
                                 else " Zuletzt ausgelöst: ${java.text.SimpleDateFormat("d. MMM, HH:mm", java.util.Locale.GERMAN).format(java.util.Date(lastFired.first))}" +
                                     (if (lastFired.second >= 60_000) " (${lastFired.second / 60_000} Min. zu spät)." else " (pünktlich).")

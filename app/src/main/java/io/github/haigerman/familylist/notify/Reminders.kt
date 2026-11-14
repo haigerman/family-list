@@ -33,8 +33,7 @@ object Reminders {
     /** Was der Empfänger tun soll: fehlt die Angabe, ist es der Wecker eines Tasks. */
     const val EXTRA_KIND = "kind"
     const val KIND_DONE = "done"
-    const val KIND_TEST_CLOCK = "test-clock"
-    const val KIND_TEST_PLAIN = "test-plain"
+    const val KIND_TEST = "test"
     const val EXTRA_AT = "at"
     const val EXTRA_OPEN_TASKS = "openTasks"
 
@@ -59,31 +58,19 @@ object Reminders {
         return prefs.getLong("lastFired", 0) to prefs.getLong("lastDelay", 0)
     }
 
-    /**
-     * Stellt zwei Probe-Wecker auf dieselbe Zeit in einer Minute: einen über die Weckerfunktion des
-     * Geräts (so stellt die App ihre Erinnerungen) und einen gewöhnlichen. Jeder meldet sich mit
-     * einer eigenen Benachrichtigung – so zeigt sich, welcher Weg auf diesem Handy ankommt.
-     */
+    /** Stellt einen Probe-Wecker auf genau dem Weg, den auch die Erinnerungen nehmen: in einer Minute kommt eine Test-Benachrichtigung. */
     fun test(context: Context) {
         val at = System.currentTimeMillis() + 60_000
-        val alarms = context.getSystemService(AlarmManager::class.java)
-        setAlarm(context, at, broadcast(context, 1, KIND_TEST_CLOCK, at = at))
-        val plain = broadcast(context, 2, KIND_TEST_PLAIN, at = at)
-        if (exactAllowed(context)) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, plain)
-        else alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, plain)
+        setAlarm(context, at, broadcast(context, 1, KIND_TEST, id = KIND_TEST, at = at))
     }
 
-    internal fun testFired(context: Context, kind: String, at: Long) {
+    internal fun testFired(context: Context, at: Long) {
         val now = System.currentTimeMillis()
         noteFired(context, now - at)
         val late = (now - at) / 1000
-        val clock = kind == KIND_TEST_CLOCK
         show(
             context,
-            Task(
-                kind, if (clock) "Test A: Weckerfunktion" else "Test B: gewöhnlicher Wecker",
-                note = if (late < 60) "Pünktlich angekommen." else "Angekommen, aber ${late / 60} Min. zu spät.",
-            ),
+            Task(KIND_TEST, "Test-Erinnerung", note = if (late < 60) "Pünktlich angekommen – die Erinnerungen funktionieren." else "Angekommen, aber ${late / 60} Min. zu spät."),
             withDone = false,
         )
     }
@@ -93,15 +80,11 @@ object Reminders {
             .putLong("lastFired", System.currentTimeMillis()).putLong("lastDelay", delay.coerceAtLeast(0)).apply()
     }
 
-    /**
-     * Stellt einen Wecker über die Weckerfunktion des Geräts (wie eine Wecker-App): Sie löst als
-     * einzige zuverlässig auf die Minute aus, auch wenn das Handy schläft oder Akku spart.
-     * Android zeigt dafür das Wecker-Symbol in der Statusleiste.
-     */
+    /** Stellt einen Wecker auf die Minute genau; er löst auch aus, wenn das Handy schläft. */
     private fun setAlarm(context: Context, at: Long, intent: PendingIntent) {
         val alarms = context.getSystemService(AlarmManager::class.java)
         if (exactAllowed(context)) {
-            alarms.setAlarmClock(AlarmManager.AlarmClockInfo(at, openApp(context)), intent)
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
         } else {
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent)
         }
@@ -117,7 +100,7 @@ object Reminders {
 
     /**
      * Der Auftrag an den [ReminderReceiver]. Bewusst schlicht – nur die Klasse und Extras, keine
-     * Aktion und keine Daten-Adresse –, damit Android ihn ohne Abgleich mit Filtern zustellt.
+     * Aktion und keine Daten-Adresse: Wecker mit Daten-Adresse wurden (Version 0.1.1) nicht zugestellt.
      * Die Aufträge unterscheiden sich über [code].
      */
     private fun broadcast(context: Context, code: Int, kind: String? = null, id: String? = null, at: Long = 0): PendingIntent =
@@ -127,7 +110,7 @@ object Reminders {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    /** Eigene Nummer je Task: gerade für den Wecker, ungerade für „Erledigt“ (1 und 2 gehören dem Test). */
+    /** Eigene Nummer je Task: gerade für den Wecker, ungerade für „Erledigt“ (1 gehört dem Test). */
     private fun code(id: String, done: Boolean): Int = (id.hashCode() and 0x3FFFFFFF) * 2 + 4 + (if (done) 1 else 0)
 
     /** Betrifft die Erinnerung dieses Geräts den Task? Ja, wenn er einem selbst oder niemandem zugeordnet ist. */
@@ -242,9 +225,8 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Store.init(context)
         val id = intent.getStringExtra(Reminders.EXTRA_ID)
-        when (val kind = intent.getStringExtra(Reminders.EXTRA_KIND)) {
-            Reminders.KIND_TEST_CLOCK, Reminders.KIND_TEST_PLAIN ->
-                Reminders.testFired(context, kind, intent.getLongExtra(Reminders.EXTRA_AT, System.currentTimeMillis()))
+        when (intent.getStringExtra(Reminders.EXTRA_KIND)) {
+            Reminders.KIND_TEST -> Reminders.testFired(context, intent.getLongExtra(Reminders.EXTRA_AT, System.currentTimeMillis()))
             Reminders.KIND_DONE -> if (id != null) {
                 context.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
                 Store.submit(TaskDone(id, true))
