@@ -95,7 +95,7 @@ fun TasksTab(data: FamilyData, myName: String) {
     // zuerst, was eine Zeit hat (das Nächste oben), dann der Rest – Neues oben
     val open = shown.filter { !it.done }.asReversed().sortedBy { it.due ?: LocalDateTime.MAX }
     val done = shown.filter { it.done }.asReversed()
-    val now = LocalDateTime.now()
+    val now = rememberNow()
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -229,7 +229,7 @@ private fun TaskRow(task: Task, data: FamilyData, now: LocalDateTime, modifier: 
                     task.due?.let { due ->
                         val late = !task.done && due.isBefore(now)
                         Text(
-                            "⏰ " + dueLabel(due), fontSize = 13.sp, fontWeight = if (late) FontWeight.Medium else FontWeight.Normal,
+                            "⏰ " + dueLabel(due, now.toLocalDate()), fontSize = 13.sp, fontWeight = if (late) FontWeight.Medium else FontWeight.Normal,
                             color = (if (late) Coral else Mist).copy(alpha = fade),
                             modifier = Modifier.padding(end = 4.dp),
                         )

@@ -77,8 +77,9 @@ fun TaskEditor(task: Task?, data: FamilyData, myName: String, onDismiss: () -> U
     // braucht deshalb Vorlauf, sonst ist ihre Zeit vorbei, bevor sie dort ankommt.
     val forOthers = assignees.any { !it.equals(myName, ignoreCase = true) }
     val changed = due != task?.due || assignees != (task?.assignees ?: emptyList<String>())
+    val clock = rememberNow()
     val tooSoon = forOthers && changed && task?.done != true &&
-        due?.isBefore(LocalDateTime.now().plusMinutes(MIN_LEAD_MINUTES)) == true
+        due?.isBefore(clock.plusMinutes(MIN_LEAD_MINUTES)) == true
 
     fun save() {
         val result = Task(
@@ -158,7 +159,7 @@ fun TaskEditor(task: Task?, data: FamilyData, myName: String, onDismiss: () -> U
                                 "so lange kann es dauern, bis der Task auf ihrem Handy ankommt.",
                             fontSize = 12.sp, color = Coral, modifier = Modifier.padding(top = 6.dp),
                         )
-                    } else if (current.isBefore(LocalDateTime.now()) && task?.done != true) {
+                    } else if (current.isBefore(clock) && task?.done != true) {
                         Text("Diese Zeit ist schon vorbei.", fontSize = 12.sp, color = Coral, modifier = Modifier.padding(top = 6.dp))
                     }
                 }

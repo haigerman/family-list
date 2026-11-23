@@ -15,6 +15,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -154,4 +157,25 @@ fun CheckCircle(checked: Boolean, description: String, modifier: Modifier = Modi
 @Composable
 fun SectionLabel(title: String, modifier: Modifier = Modifier) {
     Text(title, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier.padding(start = 8.dp, top = 18.dp, bottom = 8.dp))
+}
+
+/**
+ * Die aktuelle Zeit als Zustand: Compose baut sonst nichts neu, nur weil die Uhr weiterläuft –
+ * „Morgen, 07:00“ stünde am nächsten Tag noch da. Läuft jede volle Minute weiter und springt
+ * sofort, wenn die App wieder in den Vordergrund kommt (etwa am nächsten Morgen).
+ */
+@Composable
+fun rememberNow(): java.time.LocalDateTime {
+    var now by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(java.time.LocalDateTime.now()) }
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.LaunchedEffect(owner) {
+        owner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                now = java.time.LocalDateTime.now()
+                val ms = now.toLocalTime().let { (60 - it.second) * 1000L - it.nano / 1_000_000 }
+                kotlinx.coroutines.delay(ms.coerceIn(200L, 60_000L))
+            }
+        }
+    }
+    return now
 }
