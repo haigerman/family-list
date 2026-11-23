@@ -44,11 +44,11 @@ import java.util.Locale
 private const val REFRESH_MS = 20_000L
 
 @Composable
-fun MainScreen(openTasks: Int, onSettings: () -> Unit) {
+fun MainScreen(openPage: Pair<Int, Int>, onSettings: () -> Unit) {
     val config by Settings.config.collectAsStateWithLifecycle()
     val data by Store.data.collectAsStateWithLifecycle()
     val status by Store.status.collectAsStateWithLifecycle()
-    val pager = rememberPagerState(pageCount = { 2 })
+    val pager = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
 
     // solange die App offen ist, regelmäßig abgleichen
@@ -61,7 +61,7 @@ fun MainScreen(openTasks: Int, onSettings: () -> Unit) {
             }
         }
     }
-    LaunchedEffect(openTasks) { if (openTasks > 0) pager.scrollToPage(1) }
+    LaunchedEffect(openPage) { if (openPage.second >= 0) pager.scrollToPage(openPage.second) }
 
     val (statusText, statusBad) = when {
         !config.complete -> "OpenCloud ist noch nicht eingerichtet" to true
@@ -116,6 +116,8 @@ fun MainScreen(openTasks: Int, onSettings: () -> Unit) {
 
             val openItems = data.shop.count { !it.done }
             val openMine = data.tasks.count { !it.done }
+            val today = rememberNow().toLocalDate()
+            val nextBirthday = data.birthdays.minOfOrNull { io.github.haigerman.familylist.data.Birthdays.daysUntil(it, today) }
             Row(
                 Modifier
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -124,31 +126,42 @@ fun MainScreen(openTasks: Int, onSettings: () -> Unit) {
                     .background(Card)
                     .padding(4.dp),
             ) {
-                TabPill("Einkaufsliste", openItems, pager.currentPage == 0, Modifier.weight(1f)) { scope.launch { pager.animateScrollToPage(0) } }
-                TabPill("Tasks", openMine, pager.currentPage == 1, Modifier.weight(1f)) { scope.launch { pager.animateScrollToPage(1) } }
+                TabPill("Einkaufsliste", if (openItems > 0) "$openItems offen" else "", pager.currentPage == 0, Modifier.weight(1f)) { scope.launch { pager.animateScrollToPage(0) } }
+                TabPill("Tasks", if (openMine > 0) "$openMine offen" else "", pager.currentPage == 1, Modifier.weight(1f)) { scope.launch { pager.animateScrollToPage(1) } }
+                TabPill(
+                    "Geburtstage",
+                    nextBirthday?.let { if (it == 0L) "heute 🎂" else io.github.haigerman.familylist.data.Birthdays.whenLabel(it) } ?: "",
+                    pager.currentPage == 2, Modifier.weight(1f),
+                ) { scope.launch { pager.animateScrollToPage(2) } }
             }
 
             HorizontalPager(state = pager, modifier = Modifier.weight(1f), beyondViewportPageCount = 1) { page ->
-                if (page == 0) ShopTab(data, config.name) else TasksTab(data, config.name)
+                when (page) {
+                    0 -> ShopTab(data, config.name)
+                    1 -> TasksTab(data, config.name)
+                    else -> BirthdaysTab(data, config.name)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TabPill(label: String, count: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Box(
+private fun TabPill(label: String, detail: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val color = if (selected) OnSand else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
         modifier
             .clip(RoundedCornerShape(18.dp))
             .background(if (selected) Sand else androidx.compose.ui.graphics.Color.Transparent)
             .clickable(role = Role.Tab, onClick = onClick)
-            .padding(vertical = 12.dp),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            if (count > 0) "$label · $count" else label, fontSize = 16.sp, maxLines = 1,
-            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-            color = if (selected) OnSand else MaterialTheme.colorScheme.onSurfaceVariant,
+            label, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal, color = color,
         )
+        // zweite Zeile immer da, damit alle Reiter gleich hoch sind
+        Text(detail.ifEmpty { " " }, fontSize = 11.sp, maxLines = 1, color = color.copy(alpha = 0.8f))
     }
 }

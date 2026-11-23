@@ -12,12 +12,14 @@ object Sync {
         Doc.SHOP -> FamilyData(shop = Markdown.parseShop(text.orEmpty()))
         Doc.TASKS -> FamilyData(tasks = Markdown.parseTasks(text.orEmpty()))
         Doc.FAMILY -> FamilyData(members = Markdown.parseFamily(text.orEmpty()))
+        Doc.BIRTHDAYS -> FamilyData(birthdays = Markdown.parseBirthdays(text.orEmpty()))
     }
 
     fun write(doc: Doc, data: FamilyData): String = when (doc) {
         Doc.SHOP -> Markdown.writeShop(data.shop)
         Doc.TASKS -> Markdown.writeTasks(data.tasks)
         Doc.FAMILY -> Markdown.writeFamily(data.members)
+        Doc.BIRTHDAYS -> Markdown.writeBirthdays(data.birthdays)
     }
 
     /**

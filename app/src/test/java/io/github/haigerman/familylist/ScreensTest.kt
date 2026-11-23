@@ -4,12 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureRoboImage
+import io.github.haigerman.familylist.data.Birthday
 import io.github.haigerman.familylist.data.FamilyData
 import io.github.haigerman.familylist.data.Member
 import io.github.haigerman.familylist.data.ShopItem
 import io.github.haigerman.familylist.data.Store
 import io.github.haigerman.familylist.data.Task
 import io.github.haigerman.familylist.ui.Backdrop
+import io.github.haigerman.familylist.ui.BirthdaysTab
 import io.github.haigerman.familylist.ui.FamilyListTheme
 import io.github.haigerman.familylist.ui.SettingsScreen
 import io.github.haigerman.familylist.ui.ShopTab
@@ -46,6 +48,11 @@ class ScreensTest {
             Task("4", "Elternabend", false, listOf("Anna"), today.minusDays(1).atTime(19, 30)),
         ),
         members = listOf(Member("a", "David", 0xE8C77A), Member("b", "Anna", 0xFF8A65), Member("c", "Mia", 0x82B1FF)),
+        birthdays = listOf(
+            Birthday("1", "Oma Erna", today.monthValue, today.dayOfMonth, 1948),
+            Birthday("2", "Mia", today.plusDays(1).monthValue, today.plusDays(1).dayOfMonth, 2015),
+            Birthday("3", "Onkel Bernd", today.plusDays(20).monthValue, today.plusDays(20).dayOfMonth),
+        ),
     )
 
     private fun shot(name: String, content: @Composable () -> Unit) =
@@ -54,6 +61,7 @@ class ScreensTest {
     @Test fun shop() = shot("shop") { ShopTab(data, "David") }
     @Test fun shopEmpty() = shot("shop-empty") { ShopTab(FamilyData(), "") }
     @Test fun tasks() = shot("tasks") { TasksTab(data, "David") }
+    @Test fun birthdays() = shot("birthdays") { BirthdaysTab(data, "David") }
     @Test fun newTask() = shot("task-new") { TaskEditor(null, data, "David", {}, {}) }
     @Test fun editTask() = shot("task-edit") { TaskEditor(data.tasks[2], data, "David", {}, {}) }
 

@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -17,14 +16,27 @@ import io.github.haigerman.familylist.ui.MainScreen
 import io.github.haigerman.familylist.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
-    /** Zählt hoch, wenn eine Erinnerung angetippt wurde: dann zeigt die App die Tasks. */
-    private var openTasks by mutableIntStateOf(0)
+    /**
+     * Wurde eine Benachrichtigung angetippt: welcher Reiter gezeigt werden soll (Tasks oder
+     * Geburtstage) und eine laufende Nummer, damit auch ein zweites Antippen wirkt.
+     */
+    private var openPage by mutableStateOf(0 to -1)
+
+    private fun handle(intent: Intent?) {
+        val page = when {
+            intent == null -> return
+            intent.hasExtra(Reminders.EXTRA_OPEN_PAGE) -> intent.getIntExtra(Reminders.EXTRA_OPEN_PAGE, 1)
+            intent.getBooleanExtra(Reminders.EXTRA_OPEN_TASKS, false) -> 1
+            else -> return
+        }
+        openPage = (openPage.first + 1) to page
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Store.init(this)
         enableEdgeToEdge()
-        if (savedInstanceState == null && intent?.getBooleanExtra(Reminders.EXTRA_OPEN_TASKS, false) == true) openTasks++
+        if (savedInstanceState == null) handle(intent)
         setContent {
             FamilyListTheme {
                 var settings by rememberSaveable { mutableStateOf(false) }
@@ -34,7 +46,7 @@ class MainActivity : ComponentActivity() {
                         Store.requestSync()
                     })
                 } else {
-                    MainScreen(openTasks = openTasks, onSettings = { settings = true })
+                    MainScreen(openPage = openPage, onSettings = { settings = true })
                 }
             }
         }
@@ -42,6 +54,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.getBooleanExtra(Reminders.EXTRA_OPEN_TASKS, false)) openTasks++
+        handle(intent)
     }
 }

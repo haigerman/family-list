@@ -15,17 +15,21 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.github.haigerman.familylist.MainActivity
 import io.github.haigerman.familylist.R
+import io.github.haigerman.familylist.data.Birthday
+import io.github.haigerman.familylist.data.Birthdays
 import io.github.haigerman.familylist.data.FamilyData
 import io.github.haigerman.familylist.data.Settings
 import io.github.haigerman.familylist.data.Store
 import io.github.haigerman.familylist.data.Task
 import io.github.haigerman.familylist.data.TaskDone
+import java.time.LocalDate
 import java.time.ZoneId
 
 /**
  * Erinnerungen: Für jeden offenen Task mit Erinnerungszeit, der einen selbst betrifft, stellt die
  * App einen Wecker im Gerät; zur Zeit erscheint die Benachrichtigung. Tasks der anderen kommen
- * über den Abgleich (auch im Hintergrund) aufs Gerät.
+ * über den Abgleich (auch im Hintergrund) aufs Gerät. Dazu kommen je Geburtstag zwei feste
+ * Erinnerungen für alle: am Vortag um 15:00 und am Tag um 10:00.
  */
 object Reminders {
     private const val CHANNEL = "reminders"
@@ -38,6 +42,9 @@ object Reminders {
     const val KIND_TOMORROW = "tomorrow"
     const val EXTRA_AT = "at"
     const val EXTRA_OPEN_TASKS = "openTasks"
+    /** Welcher Reiter beim Öffnen aus einer Benachrichtigung gezeigt wird. */
+    const val EXTRA_OPEN_PAGE = "openPage"
+    const val PAGE_BIRTHDAYS = 2
 
     /** Verpasste Erinnerungen (Handy war aus, Task kam zu spät an) werden so lange noch nachgeholt. */
     private const val CATCH_UP_MS = 24 * 60 * 60 * 1000L
@@ -170,15 +177,32 @@ object Reminders {
         val now = System.currentTimeMillis()
 
         val snoozed = snoozes(context)
-        val wanted = HashMap<String, Long>()
+        val wanted = HashMap<String, Planned>()
         for (task in data.tasks) {
             if (task.done || !concerns(task, myName)) continue
             val at = millis(task) ?: continue
             // aufgeschoben? Gilt nur, solange die Zeit des Tasks dieselbe geblieben ist
-            wanted[task.id] = snoozed[task.id]?.takeIf { it.first == at }?.second ?: at
+            val time = snoozed[task.id]?.takeIf { it.first == at }?.second ?: at
+            wanted[task.id] = Planned(time, time + CATCH_UP_MS) { show(context, task) }
         }
         val kept = snoozed.filter { (id, t) -> data.tasks.any { it.id == id && !it.done && millis(it) == t.first } }
         if (kept.size != snoozed.size) saveSnoozes(context, kept)
+
+        // Geburtstage gehen alle an: fest am Vortag um 15:00 und am Tag um 10:00
+        val today = LocalDate.now()
+        for (b in data.birthdays) {
+            val date = Birthdays.next(b, today)
+            val (before, on) = Birthdays.reminders(b, today)
+            val age = Birthdays.age(b, date)
+            // verpasst (Handy aus)? Nachgeholt wird nur, solange die Erinnerung noch stimmt
+            wanted["$BIRTHDAY_PREFIX${b.id}:before"] = Planned(ms(before), ms(date.atStartOfDay())) {
+                showBirthday(context, b, "Morgen hat ${b.name} Geburtstag 🎂", age?.let { "${b.name} wird morgen $it." } ?: "Morgen gratulieren nicht vergessen.")
+            }
+            wanted["$BIRTHDAY_PREFIX${b.id}:on"] = Planned(ms(on), ms(date.plusDays(1).atStartOfDay())) {
+                showBirthday(context, b, "Heute hat ${b.name} Geburtstag 🎂", (age?.let { "${b.name} wird heute $it – " } ?: "") + "gratulieren nicht vergessen!")
+            }
+        }
+
         val scheduled = HashSet(prefs.getStringSet("scheduled", emptySet()) ?: emptySet())
         val notified = HashSet(prefs.getStringSet("notified", emptySet()) ?: emptySet())
 
@@ -189,27 +213,28 @@ object Reminders {
             if (id !in wanted) {
                 alarms.cancel(alarmIntent(context, id))
                 scheduled -= entry
-            } else if (force || entry != "$id|${wanted[id]}") {
+            } else if (force || entry != "$id|${wanted[id]?.at}") {
                 scheduled -= entry // steht nicht (mehr) richtig: unten neu stellen
             }
         }
         for (key in notified.toList()) {
             val id = key.substringBeforeLast('|')
             if (id !in wanted) {
-                notifications.cancel(id.hashCode())
+                notifications.cancel(if (id.startsWith(BIRTHDAY_PREFIX)) id.substringBeforeLast(':').hashCode() else id.hashCode())
                 notified -= key
-            } else if (key != "$id|${wanted[id]}") {
+            } else if (key != "$id|${wanted[id]?.at}") {
                 notified -= key // Zeit wurde verschoben
             }
         }
 
-        for ((id, at) in wanted) {
+        for ((id, plan) in wanted) {
+            val at = plan.at
             val key = "$id|$at"
             if (key in notified) continue
             if (at <= now) {
                 notified += key
                 scheduled -= key
-                if (now - at < CATCH_UP_MS) data.tasks.firstOrNull { it.id == id }?.let { show(context, it) }
+                if (now < plan.until) plan.show()
             } else if (key !in scheduled) {
                 alarms.cancel(oldAlarmIntent(context, id))
                 setAlarm(context, at, alarmIntent(context, id))
@@ -217,6 +242,48 @@ object Reminders {
             }
         }
         prefs.edit().putStringSet("scheduled", scheduled).putStringSet("notified", notified).apply()
+    }
+
+    /** Eine geplante Erinnerung: Zeit, bis wann sie verspätet noch gezeigt wird, und wie. */
+    private class Planned(val at: Long, val until: Long, val show: () -> Unit)
+
+    private const val BIRTHDAY_PREFIX = "bd:"
+    private const val BIRTHDAY_CHANNEL = "birthdays"
+
+    private fun ms(t: java.time.LocalDateTime): Long = t.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    /** Öffnet die App beim Geburtstagskalender. */
+    private fun openBirthdays(context: Context): PendingIntent = PendingIntent.getActivity(
+        context, 1,
+        Intent(context, MainActivity::class.java).putExtra(EXTRA_OPEN_PAGE, PAGE_BIRTHDAYS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun showBirthday(context: Context, b: Birthday, title: String, text: String) {
+        if (!hasPermission(context)) return
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(BIRTHDAY_CHANNEL, "Geburtstage", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Erinnerung am Vortag um 15:00 und am Geburtstag um 10:00"
+            }
+        )
+        val notification = NotificationCompat.Builder(context, BIRTHDAY_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_list)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(true)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setColor(0xFFF48FB1.toInt())
+            .setAutoCancel(true)
+            .setContentIntent(openBirthdays(context))
+            .build()
+        // eine Benachrichtigung je Geburtstag: die vom Tag ersetzt die vom Vortag
+        manager.notify("$BIRTHDAY_PREFIX${b.id}".hashCode(), notification)
     }
 
     private fun alarmIntent(context: Context, id: String): PendingIntent = broadcast(context, code(id, 0), id = id)

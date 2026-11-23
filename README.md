@@ -1,7 +1,7 @@
 # Family List
 
-Android-App für die Familie mit zwei Reitern: einer gemeinsamen **Einkaufsliste** und **Tasks**
-mit Erinnerung. Alle Daten liegen als lesbare Markdown-Dateien in einem **OpenCloud-Space**, auf
+Android-App für die Familie mit drei Reitern: einer gemeinsamen **Einkaufsliste**, **Tasks**
+mit Erinnerung und einem **Geburtstagskalender**. Alle Daten liegen als lesbare Markdown-Dateien in einem **OpenCloud-Space**, auf
 den alle Familienmitglieder Zugriff haben – ein eigener Server oder ein Konto bei einem Dritten
 ist nicht nötig.
 
@@ -24,6 +24,16 @@ ist nicht nötig.
 - Erinnert wird, wem der Task zugeordnet ist; Tasks ohne Zuordnung erinnern alle.
 - **Alle / Meine** filtert die Liste; Tasks mit Zeit stehen oben, Überfälliges ist rot.
 
+## Geburtstage
+
+- Der Reiter zeigt die **nächsten 5 Geburtstage**, den nächsten zuerst – mit Wochentag, „in 12 Tagen“
+  und, wenn das Jahr bekannt ist, wie alt jemand wird. **Alle anzeigen** zeigt den ganzen Kalender.
+- **＋ Geburtstag**: Name und Datum (`TT.MM.JJJJ`, das Jahr kann fehlen). Antippen eines
+  Geburtstags ändert oder löscht ihn.
+- **Erinnerungen fest für alle:** am Vortag um 15:00 und am Geburtstag um 10:00. Sie lassen sich
+  nicht ändern oder abschalten (außer über die Android-Einstellungen des Kanals „Geburtstage“).
+- Wer am 29. Februar Geburtstag hat, wird in Nicht-Schaltjahren am 28. Februar erinnert.
+
 ## Einrichtung (einmalig, auf jedem Handy)
 
 In der App unter **⚙ Einstellungen**:
@@ -45,7 +55,7 @@ Benachrichtigungen.
 
 ## Die Dateien im Space
 
-Drei Dateien liegen auf der obersten Ebene des Space:
+Vier Dateien liegen auf der obersten Ebene des Space:
 
 `Einkaufsliste.md`
 ```markdown
@@ -62,6 +72,14 @@ Drei Dateien liegen auf der obersten Ebene des Space:
 - [ ] Müll rausbringen @David @Mia ⏰ 2026-11-15 18:00 <!-- id:a1b2c3d4 von:David -->
   Gelbe Tonne nicht vergessen
 - [x] Oma anrufen <!-- id:e5f6g7h8 von:Anna -->
+```
+
+`Geburtstage.md` (nach Kalender sortiert)
+```markdown
+# Geburtstage
+
+- Oma Erna 🎂 14.03.1948 <!-- id:u9v8w7x6 von:David -->
+- Mia 🎂 23.11. <!-- id:y5z4a3b2 von:Anna -->
 ```
 
 `Familie.md`
@@ -109,13 +127,14 @@ Erinnerungen; die Test-Benachrichtigung sagt, ob sie pünktlich kam. Manche Hers
 | `ui/MainScreen.kt` | Kopf mit Abgleich-Status, die beiden Reiter |
 | `ui/ShopTab.kt` | Einkaufsliste |
 | `ui/TasksTab.kt`, `ui/TaskEditor.kt` | Tasks und der Dialog zum Anlegen/Ändern |
+| `ui/BirthdaysTab.kt`, `data/Birthdays.kt` | Geburtstagskalender; nächster Geburtstag, Alter, feste Erinnerungszeiten |
 | `ui/SettingsScreen.kt` | Name, Tag-Farbe, OpenCloud-Zugang, Space-Auswahl |
-| `data/Markdown.kt` | Liest und schreibt die drei Markdown-Dateien |
+| `data/Markdown.kt` | Liest und schreibt die Markdown-Dateien |
 | `data/Ops.kt` | Die Änderungen („abhaken“, „ergänzen“ …) und wie sie auf einen Stand angewendet werden |
 | `data/Sync.kt`, `data/Store.kt` | Abgleich einer Datei mit ETag-Prüfung; Stand und Warteschlange auf dem Gerät |
 | `data/Settings.kt` | Einstellungen, Token-Verschlüsselung |
 | `cloud/OpenCloudClient.kt` | Spaces auflisten (Graph-API), Dateien per WebDAV lesen und schreiben |
-| `notify/Reminders.kt` | Wecker stellen, Benachrichtigung zeigen, „Erledigt“ |
+| `notify/Reminders.kt` | Wecker für Tasks und Geburtstage stellen, Benachrichtigung zeigen, „Erledigt“ |
 | `notify/SyncWorker.kt` | Abgleich im Hintergrund (WorkManager) |
 
 Mindestens Android 8.0 (API 26), Ziel-API 36. Keine Google-Dienste nötig.

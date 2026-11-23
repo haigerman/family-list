@@ -2,11 +2,12 @@ package io.github.haigerman.familylist.data
 
 import java.time.LocalDateTime
 
-/** Die drei Dateien im OpenCloud-Space. */
+/** Die Dateien im OpenCloud-Space. */
 enum class Doc(val file: String) {
     SHOP("Einkaufsliste.md"),
     TASKS("Tasks.md"),
     FAMILY("Familie.md"),
+    BIRTHDAYS("Geburtstage.md"),
 }
 
 data class ShopItem(
@@ -29,6 +30,16 @@ data class Task(
     val by: String = "",
 )
 
+data class Birthday(
+    val id: String,
+    val name: String,
+    val month: Int,
+    val day: Int,
+    /** Geburtsjahr, wenn bekannt – dann zeigt die App, wie alt jemand wird. */
+    val year: Int? = null,
+    val by: String = "",
+)
+
 data class Member(
     val id: String,
     val name: String,
@@ -40,6 +51,7 @@ data class FamilyData(
     val shop: List<ShopItem> = emptyList(),
     val tasks: List<Task> = emptyList(),
     val members: List<Member> = emptyList(),
+    val birthdays: List<Birthday> = emptyList(),
 ) {
     fun colorOf(name: String): Int =
         members.firstOrNull { it.name.equals(name, ignoreCase = true) }?.color ?: fallbackColor(name)

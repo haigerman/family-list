@@ -94,6 +94,35 @@ object Markdown {
         }
     }
 
+    // ---------------------------------------------------------------- Geburtstage
+
+    private val BIRTH = Regex("🎂\\s*(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})?")
+
+    fun parseBirthdays(text: String): List<Birthday> {
+        val ids = IdSource()
+        return text.lines().mapNotNull { line ->
+            val parsed = parseLine(line) ?: return@mapNotNull null
+            val m = BIRTH.find(parsed.body) ?: return@mapNotNull null
+            val day = m.groupValues[1].toInt()
+            val month = m.groupValues[2].toInt()
+            val year = m.groupValues[3].takeIf { it.isNotEmpty() }?.toInt()
+            if (!Birthdays.valid(day, month, year)) return@mapNotNull null
+            val name = parsed.body.removeRange(m.range).replace(Regex("\\s+"), " ").trim()
+            if (name.isEmpty()) return@mapNotNull null
+            Birthday(ids.of(parsed), name, month, day, year, parsed.meta["von"].orEmpty())
+        }
+    }
+
+    /** Nach dem Kalender sortiert (Januar zuerst) – so liest sich die Datei wie ein Geburtstagskalender. */
+    fun writeBirthdays(list: List<Birthday>): String = buildString {
+        append("# Geburtstage\n\n")
+        for (b in list.sortedWith(compareBy<Birthday>({ it.month }, { it.day }, { it.name.lowercase() }))) {
+            append("- ").append(oneLine(b.name)).append(" 🎂 ").append("%02d.%02d.".format(b.day, b.month))
+            b.year?.let { append(it) }
+            append(meta("id" to b.id, "von" to b.by)).append('\n')
+        }
+    }
+
     // ---------------------------------------------------------------- Familie
 
     fun parseFamily(text: String): List<Member> {

@@ -26,6 +26,10 @@ data class TaskRetag(val old: String, val new: String) : Op { override val doc g
 
 data class MemberPut(val member: Member) : Op { override val doc get() = Doc.FAMILY }
 
+/** Neuer Geburtstag; gibt es die Kennung schon, wird er ersetzt. */
+data class BirthdayPut(val birthday: Birthday) : Op { override val doc get() = Doc.BIRTHDAYS }
+data class BirthdayDelete(val ids: List<String>) : Op { override val doc get() = Doc.BIRTHDAYS }
+
 fun FamilyData.apply(ops: List<Op>): FamilyData = ops.fold(this) { data, op -> data.apply(op) }
 
 fun FamilyData.apply(op: Op): FamilyData = when (op) {
@@ -43,6 +47,10 @@ fun FamilyData.apply(op: Op): FamilyData = when (op) {
         if (t.assignees.none { it.equals(op.old, ignoreCase = true) }) t
         else t.copy(assignees = t.assignees.map { if (it.equals(op.old, ignoreCase = true)) op.new else it }.distinctBy { it.lowercase() })
     })
+    is BirthdayPut ->
+        if (birthdays.any { it.id == op.birthday.id }) copy(birthdays = birthdays.map { if (it.id == op.birthday.id) op.birthday.copy(by = it.by) else it })
+        else copy(birthdays = birthdays + op.birthday)
+    is BirthdayDelete -> copy(birthdays = birthdays.filter { it.id !in op.ids })
     is MemberPut -> {
         val m = op.member
         // derselbe Name auf einem neu eingerichteten Gerät ersetzt den alten Eintrag
@@ -77,6 +85,11 @@ object OpCodec {
             is TaskDone -> { put("t", "taskDone"); put("id", op.id); put("done", op.done) }
             is TaskDelete -> { put("t", "taskDelete"); put("ids", JSONArray(op.ids)) }
             is TaskRetag -> { put("t", "taskRetag"); put("old", op.old); put("new", op.new) }
+            is BirthdayPut -> {
+                put("t", "birthdayPut"); put("id", op.birthday.id); put("text", op.birthday.name); put("month", op.birthday.month)
+                put("day", op.birthday.day); put("year", op.birthday.year ?: 0); put("by", op.birthday.by)
+            }
+            is BirthdayDelete -> { put("t", "birthdayDelete"); put("ids", JSONArray(op.ids)) }
             is MemberPut -> { put("t", "memberPut"); put("id", op.member.id); put("text", op.member.name); put("color", op.member.color) }
         }
     }
@@ -100,6 +113,13 @@ object OpCodec {
         "taskDone" -> TaskDone(o.getString("id"), o.optBoolean("done"))
         "taskDelete" -> TaskDelete(strings(o, "ids"))
         "taskRetag" -> TaskRetag(o.optString("old"), o.optString("new"))
+        "birthdayPut" -> BirthdayPut(
+            Birthday(
+                o.getString("id"), o.optString("text"), o.optInt("month"), o.optInt("day"),
+                o.optInt("year").takeIf { it > 0 }, o.optString("by"),
+            )
+        )
+        "birthdayDelete" -> BirthdayDelete(strings(o, "ids"))
         "memberPut" -> MemberPut(Member(o.getString("id"), o.optString("text"), o.optInt("color")))
         else -> null
     }

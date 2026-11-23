@@ -82,7 +82,7 @@ object Store {
         }
     }
 
-    /** Gleicht alle drei Dateien mit dem Space ab. Liefert, ob es geklappt hat. */
+    /** Gleicht alle Dateien mit dem Space ab. Liefert, ob es geklappt hat. */
     suspend fun sync(): Boolean = mutex.withLock {
         val config = Settings.config.value
         if (!config.complete) return@withLock false
@@ -151,6 +151,7 @@ object Store {
                 shop = Markdown.parseShop(cache[Doc.SHOP]?.text.orEmpty()),
                 tasks = Markdown.parseTasks(cache[Doc.TASKS]?.text.orEmpty()),
                 members = Markdown.parseFamily(cache[Doc.FAMILY]?.text.orEmpty()),
+                birthdays = Markdown.parseBirthdays(cache[Doc.BIRTHDAYS]?.text.orEmpty()),
             )
             base.apply(pending) to pending.size
         }
